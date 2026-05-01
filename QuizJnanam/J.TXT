@@ -1,0 +1,107 @@
+```pgsql
+-- Remove the global unique constraint
+ALTER TABLE ef_users DROP CONSTRAINT IF EXISTS ef_users_roll_no_unique;
+
+-- Drop old indexes if they exist
+DROP INDEX IF EXISTS uidx_rollno_year1_section;
+DROP INDEX IF EXISTS uidx_rollno_year234_course;
+
+-- 1st year: roll_no unique within same section only
+-- e.g. two students in Section A cannot both have C01
+-- but Section A and Section B can both have C01
+CREATE UNIQUE INDEX uidx_rollno_1styear
+ON ef_users (LOWER(roll_no), LOWER(section))
+WHERE role = 'student' 
+  AND year = 1 
+  AND roll_no IS NOT NULL 
+  AND roll_no != '';
+
+-- 2nd+ year: roll_no unique within same year + course/branch only
+-- e.g. two CSE 2nd year students cannot both have C01
+-- but CSE and ISE can both have C01
+CREATE UNIQUE INDEX uidx_rollno_2ndplusyear
+ON ef_users (LOWER(roll_no), year, LOWER(course))
+WHERE role = 'student' 
+  AND year > 1 
+  AND roll_no IS NOT NULL 
+  AND roll_no != '';
+```
+
+
+-- Drop the old global unique constraint (the one causing the error)
+ALTER TABLE ef_users DROP CONSTRAINT IF EXISTS ef_users_roll_no_unique;
+
+-- Also drop any other roll_no unique constraints that might exist
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT constraint_name
+    FROM information_schema.table_constraints
+    WHERE table_name = 'ef_users'
+      AND constraint_type = 'UNIQUE'
+      AND constraint_name ILIKE '%roll%'
+  LOOP
+    EXECUTE 'ALTER TABLE ef_users DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
+  END LOOP;
+END $$;
+
+-- Drop old partial indexes if they somehow exist
+DROP INDEX IF EXISTS uidx_rollno_1styear;
+DROP INDEX IF EXISTS uidx_rollno_2ndplusyear;
+DROP INDEX IF EXISTS uidx_rollno_year1_section;
+DROP INDEX IF EXISTS uidx_rollno_year234_course;
+
+-- Recreate the correct partial indexes
+CREATE UNIQUE INDEX uidx_rollno_1styear
+ON ef_users (LOWER(roll_no), LOWER(section))
+WHERE role = 'student' AND year = 1 AND roll_no IS NOT NULL AND roll_no != '';
+
+CREATE UNIQUE INDEX uidx_rollno_2ndplusyear
+ON ef_users (LOWER(roll_no), year, LOWER(course))
+WHERE role = 'student' AND year > 1 AND roll_no IS NOT NULL AND roll_no != '';
+
+
+
+hey even after i run this query im getting error in website like:
+Error: duplicate key value violates unique constraint "ef_users_roll_no_unique"
+
+and in console like:
+mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_users?id=eq.614bd034-3f14-43be-8bfb-2e764acf7cb9:1  Failed to load resource: the server responded with a status of 409 ()
+mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_users?id=eq.614bd034-3f14-43be-8bfb-2e764acf7cb9:1  Failed to load resource: the server responded with a status of 409 ()
+mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_settings?select=key&limit=1:1  Failed to load resource: net::ERR_CONNECTION_CLOSED
+Unchecked runtime.lastError: No tab with id: 1200212743.
+Unchecked runtime.lastError: No tab with id: 1200212743.
+mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_users?id=eq.614bd034-3f14-43be-8bfb-2e764acf7cb9:1  Failed to load resource: the server responded with a status of 409 ()
+mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_users?id=eq.614bd034-3f14-43be-8bfb-2e764acf7cb9:1  Failed to load resource: the server responded with a status of 409 ()
+
+
+
+supabase.js:20  PATCH https://mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_users?id=eq.614bd034-3f14-43be-8bfb-2e764acf7cb9 409 (Conflict)
+(anonymous) @ supabase.js:20
+(anonymous) @ supabase.js:20
+await in (anonymous)
+(anonymous) @ supabase.js:1
+then @ supabase.js:1
+supabase.js:20  GET https://mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_settings?select=key&limit=1 net::ERR_CONNECTION_CLOSED
+(anonymous) @ supabase.js:20
+(anonymous) @ supabase.js:20
+await in (anonymous)
+(anonymous) @ supabase.js:1
+then @ supabase.js:1
+setInterval
+initRealtimeSync @ app:3511
+afterLogin @ app:3321
+await in afterLogin
+(anonymous) @ app:3814
+Promise.then
+then @ supabase.js:1
+tryAutoLogin @ app:3804
+(anonymous) @ app:9163
+supabase.js:20  PATCH https://mybntsevvmglgeeqyncp.supabase.co/rest/v1/ef_users?id=eq.614bd034-3f14-43be-8bfb-2e764acf7cb9 409 (Conflict)
+(anonymous) @ supabase.js:20
+(anonymous) @ supabase.js:20
+await in (anonymous)
+(anonymous) @ supabase.js:1
+then @ supabase.js:1
