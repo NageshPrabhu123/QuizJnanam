@@ -15,9 +15,9 @@ built for colleges and universities in India.
 - MCQ, Descriptive, True/False questions
 
 ## Built by
-K Nagesh Prabhu — B.E. Student, MITE Moodbidri
-
 Keval Jain - B.E. Student, MITE Moodbidri
+
+K Nagesh Prabhu — B.E. Student, MITE Moodbidri
 
 ## Keywords
 online exam platform India, proctored exam software, 
